@@ -3,6 +3,8 @@ import sys
 
 from httpx import stream
 import numpy
+import pyttsx3
+from googletrans import Translator
 
 # Dependency check
 
@@ -12,6 +14,7 @@ try:
     import matplotlib.pyplot as plt
     import speech_recognition as sr
     from speech_recognition import AudioData
+    
     
 except ImportError as e:
     
@@ -24,9 +27,8 @@ sys.exit(1)
 
 stop_event = threading.Event()
 
-def wait_for_enter():input()
-
-stop_event.set()
+def wait_for_enter():
+    input()
 
 def record_audio(label):
     
@@ -50,17 +52,17 @@ def record_audio(label):
         frames.append(stream.read(1024, exception_on_overflow=False))
         
         print(".", end="", flush=True)
+    
+    print(" ✅")
+    
+    stream.stop_stream()
+    
+    stream.close()
         
-        print(" ✅")
         
-        stream.stop_stream()
+    width = p.get_sample_size(pyaudio.paInt16)
         
-        stream.close()
-        
-        
-        width = p.get_sample_size(pyaudio.paInt16)
-        
-        p.terminate()
+    p.terminate()
     
     return b''.join(frames), 16000, width
 
@@ -94,11 +96,17 @@ def transcribe(data, rate, width):
 def display_stats(stats, text, label):
     
     print(f"\n{'─' * 40}")
+    
     print(f"???? {label}")
+    
     print(f"{'─' * 40}")
+    
     print(f"⏱️  Duration:  {stats['duration']:.2f} seconds")
+    
     print(f"???? Avg Amplitude: {stats['avg_volume']:.0f}")
+    
     print(f"???? Max Amplitude: {stats['max_volume']:.0f}")
+    
     print(f"???? Transcription: {text}")
 
  
@@ -126,8 +134,8 @@ def compare(stats1, stats2):
         longer = "Recording 2"
         
         diff = ((stats2['duration'] - stats1['duration']) / stats1['duration']) * 100
-        
-    print(f"⏱️  {longer} is longer by {diff:.1f}%)
+    
+    print(f"⏱️  {longer} is longer by {diff:.1f}%")
 
 
 
@@ -147,55 +155,134 @@ def compare(stats1, stats2):
      
     print(f"???? {louder} is louder by {diff:.1f}%")
 
+
 def plot_both(stats1, stats2, rate):
+    
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6))
 
     # Plot Recording 1
     t1 = np.linspace(0, len(stats1['samples']) / rate, len(stats1['samples']))
+    
     ax1.plot(t1, stats1['samples'], color='blue', linewidth=0.5)
+    
     ax1.set_title(f"Recording 1 (Normal) - Duration: {stats1['duration']:.2f}s, Avg: {stats1['avg_volume']:.0f}")
+    
     ax1.set_ylabel("Amplitude")
+    
     ax1.grid(True, alpha=0.3)
+    
     ax1.set_ylim(-35000, 35000)
 
     # Plot Recording 2
+    
     t2 = np.linspace(0, len(stats2['samples']) / rate, len(stats2['samples']))
+    
     ax2.plot(t2, stats2['samples'], color='red', linewidth=0.5)
+    
     ax2.set_title(f"Recording 2 (Modified) - Duration: {stats2['duration']:.2f}s, Avg: {stats2['avg_volume']:.0f}")
+    
     ax2.set_xlabel("Time (seconds)")
+    
     ax2.set_ylabel("Amplitude")
+    
     ax2.grid(True, alpha=0.3)
+    
     ax2.set_ylim(-35000, 35000)
 
     plt.tight_layout()
+    
     plt.show()
 
+def translate_text(text, target_language= "es"):
+    
+    translator = Translator()
+    
+    translation = translator.translate(text, dest=target_language)
+    
+    print(f"????? Translated Text ({target_language}): {translation.text}")
+    
+    return translation.text
+
+def display_language_options():
+    
+    print("\n???? Language Options:")
+    
+    print("1. Spanish (es)")
+    
+    print("2. French (fr)")
+    
+    print("3. German (de)")
+    
+    print("4. Italian (it)")
+    
+    print("5. Portuguese (pt)")
+    
+    print("6. Russian (ru)")
+    
+    print("7. Chinese (zh-cn)")
+    
+    print("8. Hindi (hi)")
+    
+    print("9. Bengali (bn)")
+    
+    print("10. Korean (ko)")
+
+    choice = input("Select a language by number (1-10): ")
+    
+    language_dict = {
+        
+        "1": "es",
+        "2": "fr",
+        "3": "de",
+        "4": "it",
+        "5": "pt",
+        "6": "ru",
+        "7": "zh-cn",
+        "8": "hi",
+        "9": "bn",
+        "10": "ko"
+    }
+
+    return language_dict.get(choice, "es") # Default to Spanish if invalid choice
 
 def main():
+    
     print("=" * 40)
     print("???? VOICE ANALYSIS LAB")
     print("=" * 40)
     print("Record twice and compare your voice!")
 
-    # Recording 1: Control
+# Recording 1: Control
+
     audio1, rate, width = record_audio("Recording 1: Speak NORMALLY")
+
     stats1 = analyze_audio(audio1, rate)
+
     text1 = transcribe(audio1, rate, width)
+    
     display_stats(stats1, text1, "Recording 1 Results")
 
     # Prompt for Recording 2
+    
     input("\n???? Press Enter, then speak LOUDER or FASTER...")
 
-    # Recording 2: Variable
+   # Recording 2: Variable
+    
     audio2, rate, width = record_audio("Recording 2: CHANGE your voice!")
+
     stats2 = analyze_audio(audio2, rate)
+
     text2 = transcribe(audio2, rate, width)
+
     display_stats(stats2, text2, "Recording 2 Results")
 
-    # Compare and visualize
-    compare(stats1, stats2)
-    plot_both(stats1, stats2, rate)
 
+
+    # Compare and visualize
+
+    compare(stats1, stats2)
+
+    plot_both(stats1, stats2, rate)
 
 if __name__ == "__main__":
     main()
